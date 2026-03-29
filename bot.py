@@ -11,9 +11,13 @@ CHAT_ID = "6209715808"
 
 SCALPING_MOD = True
 
+KAR_ORANI = 1.012
+MIN_SINYAL = 3
+MAX_VOLATILITE = 0.08
+
 def telegram(msg):
 
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    url=f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
     requests.post(url,data={"chat_id":CHAT_ID,"text":msg})
 
@@ -45,107 +49,75 @@ def analiz(fiyatlar):
 
     yorum=[]
 
-    if rsi<35:
-
+    if rsi<40:
         skor+=2
-
-        yorum.append("RSI dip seviyede")
+        yorum.append("RSI düşük")
 
     if macd>0:
-
         skor+=2
-
         yorum.append("Trend yukarı")
 
     if fiyat<alt:
-
         skor+=2
-
-        yorum.append("Alt bant temas")
+        yorum.append("Alt bant")
 
     ort=df["close"].mean()
 
     if fiyat>ort:
-
         skor+=1
 
     return skor,fiyat,volatilite,", ".join(yorum)
 
 gecmis={}
-
 alinanlar={}
 
 gunluk_sinyal=0
-
 basarili=0
 
-toplam_kar=0
-
 son_rapor=datetime.now()
-
 son_tahmin=datetime.now()
-
 son_balina=datetime.now()
-
-son_haber=datetime.now()
-
 son_dusus=datetime.now()
 
-telegram("🤖 FULL AI BOT AKTİF")
+telegram("🤖 AI BOT AKTİF")
 
 while True:
 
     coinler=tum_coinler()
 
     en_iyi=None
-
     en_skor=-999
 
     for coin in coinler:
 
         pair=coin["pair"]
-
         fiyat=float(coin["last"])
 
         if pair not in gecmis:
-
             gecmis[pair]=[]
 
         gecmis[pair].append(fiyat)
 
-        if len(gecmis[pair])>60:
-
+        if len(gecmis[pair])>50:
             gecmis[pair].pop(0)
 
-        if len(gecmis[pair])>30:
+        if len(gecmis[pair])>25:
 
             skor,fiyat,volatilite,yorum=analiz(gecmis[pair])
 
-            if volatilite>0.06:
-
+            if volatilite>MAX_VOLATILITE:
                 continue
 
             if skor>en_skor:
 
                 en_skor=skor
-
                 en_iyi=(pair,fiyat,skor,yorum)
 
-    if en_iyi and en_skor>=4:
+    if en_iyi and en_skor>=MIN_SINYAL:
 
         coin,fiyat,skor,yorum=en_iyi
 
-        if SCALPING_MOD:
-
-            hedef=fiyat*1.02
-
-            sure="30-90 dk"
-
-        else:
-
-            hedef=fiyat*1.05
-
-            sure="2-6 saat"
+        hedef=fiyat*KAR_ORANI
 
         alinanlar[coin]=hedef
 
@@ -159,20 +131,16 @@ f"""
 
 Coin: {coin}
 
-🟢 ALIŞ: {round(fiyat,4)}
+Alış: {round(fiyat,4)}
 
-🎯 HEDEF: {round(hedef,4)}
+Hedef: {round(hedef,4)}
 
-📈 KAR: %{round(((hedef-fiyat)/fiyat)*100,2)}
+Kar: %{round(((hedef-fiyat)/fiyat)*100,2)}
 
-⏰ Süre: {sure}
-
-🧠 AI Yorum:
+Sebep:
 {yorum}
 
-🛡 Risk: düşük
-
-📊 Güç: {skor}/10
+Risk: düşük
 
 """
 )
@@ -180,7 +148,6 @@ Coin: {coin}
     for coin in coinler:
 
         pair=coin["pair"]
-
         fiyat=float(coin["last"])
 
         if pair in alinanlar:
@@ -199,9 +166,7 @@ f"""
 
 Coin: {pair}
 
-Fiyat hedefe ulaştı
-
-İşlem tamam
+Hedefe ulaştı
 
 """
 )
@@ -210,50 +175,41 @@ Fiyat hedefe ulaştı
 
     simdi=datetime.now()
 
-    # günlük rapor
-
     if simdi-son_rapor>timedelta(hours=24):
 
         telegram(
 
 f"""
 
-📊 GÜNLÜK RAPOR
+📊 RAPOR
 
 Sinyal: {gunluk_sinyal}
 
 Başarılı: {basarili}
 
-Bot aktif çalışıyor
-
 """
 )
 
         gunluk_sinyal=0
-
         basarili=0
 
         son_rapor=simdi
 
-    # en çok artabilecek coin tahmini
-
-    if simdi-son_tahmin>timedelta(hours=4):
+    if simdi-son_tahmin>timedelta(hours=3):
 
         aday=None
-
-        en_skor2=0
+        skor2=0
 
         for pair in gecmis:
 
-            if len(gecmis[pair])>30:
+            if len(gecmis[pair])>25:
 
-                skor,fiyat,volatilite,yorum=analiz(gecmis[pair])
+                s,f,v,y=analiz(gecmis[pair])
 
-                if skor>en_skor2:
+                if s>skor2:
 
-                    en_skor2=skor
-
-                    aday=(pair,skor,yorum)
+                    skor2=s
+                    aday=(pair,y)
 
         if aday:
 
@@ -265,17 +221,13 @@ f"""
 
 Coin: {aday[0]}
 
-Potansiyel yüksek
-
 Sebep:
-{aday[2]}
+{aday[1]}
 
 """
 )
 
         son_tahmin=simdi
-
-    # balina hareketi
 
     if simdi-son_balina>timedelta(minutes=30):
 
@@ -283,11 +235,11 @@ Sebep:
 
             f=gecmis[pair]
 
-            if len(f)>8:
+            if len(f)>10:
 
                 degisim=(f[-1]-f[-5])/f[-5]
 
-                if abs(degisim)>0.03:
+                if abs(degisim)>0.035:
 
                     telegram(
 
@@ -297,35 +249,12 @@ f"""
 
 Coin: {pair}
 
-Ani fiyat değişimi
-
-%{round(degisim*100,2)}
+Değişim %{round(degisim*100,2)}
 
 """
 )
 
         son_balina=simdi
-
-    # haber yorumu
-
-    if simdi-son_haber>timedelta(hours=6):
-
-        telegram(
-
-"""
-
-📰 PİYASA HABER
-
-BTC hareketleri piyasayı etkileyebilir
-
-Volatilite artabilir
-
-"""
-)
-
-        son_haber=simdi
-
-    # düşüş erken uyarı
 
     if simdi-son_dusus>timedelta(minutes=20):
 
@@ -337,25 +266,21 @@ Volatilite artabilir
 
                 degisim=(f[-1]-f[-6])/f[-6]
 
-                if degisim<-0.025:
+                if degisim<-0.03:
 
                     telegram(
 
 f"""
 
-🚨 ERKEN DÜŞÜŞ
+🚨 DÜŞÜŞ UYARISI
 
 Coin: {pair}
 
-Hızlı düşüş algılandı
-
 %{round(degisim*100,2)}
-
-Risk artıyor
 
 """
 )
 
         son_dusus=simdi
 
-    time.sleep(180)
+    time.sleep(120)
