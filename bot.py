@@ -226,3 +226,17 @@ Toplam fırsat kazanç ihtimali:
 
 
     time.sleep(600)
+
+from flask import Flask
+from threading import Thread
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "bot aktif"
+
+def run_web():
+    app.run(host="0.0.0.0", port=10000)
+
+Thread(target=run_web).start()
