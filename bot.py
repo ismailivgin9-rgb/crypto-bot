@@ -3,8 +3,8 @@ import time
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 
-TOKEN = "TOKEN"
-CHAT_ID = "CHAT_ID"
+TOKEN = "8704318933:AAEFNyA1_Jjs1L6CTEGk6Mk-XUGzU1SGM8Q"
+CHAT_ID = "6209715808"
 
 SCALPING = True
 
